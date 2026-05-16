@@ -1,1 +1,498 @@
-<h1>The Fossil Ledger is Live</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Britt</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      height: 100dvh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── Slideshow container ── */
+    #show {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+    }
+
+    /* ── Slides ── */
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.7s ease;
+      pointer-events: none;
+    }
+    .slide.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .slide.prev {
+      opacity: 0;
+    }
+
+    .slide img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .slide iframe {
+      width: 100vw;
+      height: 100dvh;
+      border: none;
+      display: block;
+    }
+
+    /* Loading state */
+    .slide .loader {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: rgba(255,255,255,0.8);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Overlay UI ── */
+    #ui {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    /* Progress bar */
+    #progress {
+      position: absolute;
+      top: 0; left: 0;
+      height: 2px;
+      background: rgba(255,255,255,0.85);
+      transition: width 0.1s linear;
+      width: 0%;
+    }
+
+    /* Title */
+    #title {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.1rem;
+      font-weight: 300;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      text-shadow: 0 1px 8px rgba(0,0,0,0.9);
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    /* Nav arrows */
+    .nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px);
+      cursor: pointer;
+      pointer-events: all;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s, background 0.2s;
+    }
+    .nav:hover { background: rgba(0,0,0,0.65); }
+    #prev { left: 16px; }
+    #next { right: 16px; }
+    .nav svg { width: 22px; height: 22px; fill: #fff; }
+
+    /* Counter */
+    #counter {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      color: rgba(255,255,255,0.6);
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+
+    /* Pause/play button */
+    #playpause {
+      position: absolute;
+      bottom: 14px;
+      right: 16px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px);
+      cursor: pointer;
+      pointer-events: all;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s, background 0.2s;
+    }
+    #playpause:hover { background: rgba(0,0,0,0.65); }
+    #playpause svg { width: 16px; height: 16px; fill: #fff; }
+
+    /* Show UI on hover or touch */
+    #show:hover #ui #title,
+    #show:hover #ui .nav,
+    #show:hover #ui #counter,
+    #show:hover #ui #playpause,
+    #ui.peek #title,
+    #ui.peek .nav,
+    #ui.peek #counter,
+    #ui.peek #playpause {
+      opacity: 1;
+    }
+
+    /* Video type indicator */
+    .type-badge {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 3rem;
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    /* Auth notice */
+    #auth-notice {
+      position: fixed;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.75);
+      text-align: center;
+      z-index: 30;
+      display: none;
+    }
+    #auth-notice a { color: #4a9eff; text-decoration: none; }
+    #auth-notice a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<div id="show">
+  <div id="slides"></div>
+
+  <div id="ui">
+    <div id="progress"></div>
+    <div id="title">Britt</div>
+
+    <button class="nav" id="prev" aria-label="Previous">
+      <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+    </button>
+    <button class="nav" id="next" aria-label="Next">
+      <svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+    </button>
+
+    <div id="counter">1 / 1</div>
+
+    <button id="playpause" aria-label="Pause">
+      <svg id="pause-icon" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      <svg id="play-icon" viewBox="0 0 24 24" style="display:none"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+  </div>
+</div>
+
+<div id="auth-notice">
+  Some media couldn't load. Make sure you're
+  <a href="https://accounts.google.com" target="_blank">signed in to Google</a>.
+</div>
+
+<script>
+const slides = [
+  // ── Images: Britt subfolder (IMG_9434 → IMG_9512, roughly chronological) ──
+  { t:'img', id:'17vkbIW9PZ-uPDem4HXGsoau-5SibHJbT' },
+  { t:'img', id:'1gbR2rjJ0xhragbG5PVe9dtLwF_M9vsuo' },
+  { t:'img', id:'1eUFfvH4PJBOdeTZvJ047IYwkhBqk8kcp' },
+  { t:'img', id:'1vSBP3-kl8_3lUyxKJyOXYXcfgXpYe7Mo' },
+  { t:'img', id:'13nhDDAaWxsvHA-DVPjnNZQ-OEP1BwUSD' },
+  { t:'img', id:'15bv9dIX6PiXdD3MsX2Iz4uwJZ3zHn7M1' },
+  { t:'img', id:'1p1CFUPjIVlAqIUoF7U428DV8cf0niKMx' },
+  { t:'img', id:'1gUDbpOJ_kzuM0jyjQKsP82oPaYHXhRP2' },
+  { t:'img', id:'1rCKwXofEJjDj0RFpvHxJVrgrZFChrQu2' },
+  { t:'img', id:'1gz8qC7pc6h-PWKwnaFZW-FtXjmrOoeEa' },
+  { t:'img', id:'1vL97YKOvneFPLf6azBKmdoZdvJMS0Nur' },
+  { t:'img', id:'134ZwPyqCZ2gyYNarpb2kro17teH-iOj8' },
+  { t:'img', id:'1QO4WvCKsxB04GY3wEdSiRSDjq4BVmKxR' },
+  { t:'img', id:'11elO72EqjwQQ9pArpCUpgmABrV2ThszD' },
+  { t:'img', id:'1c0mcEOzcdwUP_WsnEYe_s9j211yMSaqU' },
+  { t:'img', id:'1hNWVyLc9TXvNr41jo1hwWyrgvxGo5f66' },
+  { t:'img', id:'1_9PwWf-uCTPFdA_NUbXw4eOqG5YedrRf' },
+  { t:'img', id:'1auL8_GUhvKY9BFlRPGR1rjcCfp95z2u7' },
+  { t:'img', id:'1rUaEb4MHJkLccn1DAW7OXp6VWZNwWUH6' },
+  { t:'img', id:'1WeKoyHYGGZvdYFyxi53IquFjSNtl356y' },
+  { t:'img', id:'1lNG7qWllISSy3bqO74QmACdGB1p7UFKB' },
+  { t:'img', id:'1VfZE9iStkMVnA2sg4SoKPjPROosBm6uR' },
+  { t:'img', id:'1_Z_-2rJ2UhdlUhQzvMLxx7tWaYqrMxWN' },
+  { t:'img', id:'1AyVrwCUQCv8Z4ySBqfQFp7NIchCmk1QT' },
+  { t:'img', id:'1dZ36dAcdGJHjnhIOIcCk5ZT95Lac0pn0' },
+  { t:'img', id:'1XZweGWlhG1qDtgddM32JT4RAcAla1zdZ' },
+  { t:'img', id:'1slaKWk5x2LMaV9dw0Ak62r7zaoURBMdM' },
+  { t:'img', id:'1WZGwZgp2L4YuMQE302oWkY1JCCUMf74S' },
+  { t:'img', id:'1aFvcZqxpIzB9x9iPbwgSD2V4wRoZFclK' },
+  { t:'img', id:'1yK1K81J5aGWAqqfBkZxA_KuJhx_cbBTn' },
+  { t:'img', id:'1AZ4ProNvzINuIvRVw2GP5OGpg---xDql' },
+  { t:'img', id:'1yZ468erkAZ2aUJXPQz_jFWKRP-i4vX9J' },
+  { t:'img', id:'1IQtYlCtp2L2mKAA8AYWLcXO6NCHghtNT' },
+  { t:'img', id:'1N9tcn-siWkxngo0NyNFgbd1rUBw5-UUR' },
+  { t:'img', id:'1EcO3FytaSmd3WeNIZlIXxBr_79lehNSt' },
+  { t:'img', id:'1mVc0EDP9mqdaqYvMmRJTe9-obMBTMRZl' },
+  { t:'img', id:'1XfVzJNEtX8WlT6GHh3yIUQ-W4_HZuNfr' },
+  { t:'img', id:'1Vt4eJGNfMZlOlugZYb2eDR_XZ7lAkDlB' },
+  { t:'img', id:'10EuiFgfnKN4nU8ODTOA_sUU1I9b-6rDv' },
+  { t:'img', id:'11CTcXycF0HVq0WVfAOeQ-Mdee1PAJr9S' },
+  { t:'img', id:'1jHm_FjV_vxFH3y7cZbKXXX9bP1vdSK1q' },
+  { t:'img', id:'1tlwwD63be_64XwSzkrfVtmXJQvCPXGDc' },
+  { t:'img', id:'1w_OJaKKkQbItk4DqmrCWNQmIkUuzCnHM' },
+  { t:'img', id:'1dsjBZ7AXbRhMcGGtJGOSkzPHFw3MuPlo' },
+  { t:'img', id:'1-h-hhV7QSWewC2LSmxNBRxgtNa1qjF3J' },
+  { t:'img', id:'1TVp-TiJr97K8eg4WOOinSdtt6R3lcYFl' },
+  { t:'img', id:'1WlWz-JQLM2CQOheFahimucgbik4tMwe2' },
+  { t:'img', id:'1TKUvXFJaOXgzqVUdLzjBgEMmjOfO9Nm1' },
+  { t:'img', id:'1rHnV8KQAjJvrOyEbIl1VdzmTmMC60KT-' },
+  { t:'img', id:'1jvFn2cXqfAgDRt3lAt78Rgny1QrrDXXw' },
+  // ── Images: root britt folder ──
+  { t:'img', id:'10fvsGdNI9CSYf9MnCvT6fWrhvwvUI5rk' },
+  { t:'img', id:'14blRUL8K93c-s0tB0PWIE3kzeHkObZ4u' },
+  { t:'img', id:'1h5bVTtu24VYAI5l7jg1jQ8Hj6AxFQoHO' },
+  // ── Videos: old Facebook-era clips (2010–2014) ──
+  { t:'vid', id:'1hYQx7XUjqutlMiuJ0YkumOE6l6VLMu1r' },
+  { t:'vid', id:'1Sbz6FqSwHA5INMGTC5eK8SW1nR-vfZWC'  },
+  { t:'vid', id:'1yCbVyZXKGvkhxVC_NxJZmODRc1Btmuu4' },
+  { t:'vid', id:'117cI8jSOHvcZNeqd9fxd2madQupXKd_G'  },
+  { t:'vid', id:'1gsyrUgvno37aC589I9IPClS04Z2g52R2'  },
+  // ── Videos: newer clips ──
+  { t:'vid', id:'1WlM94GrGsfgq-fBGfq-UKeWT82_4d6Be'  },
+  { t:'vid', id:'1r1BVwUDZuJmXt1pjVF6WFb1MjFgulpW7'  },
+  { t:'vid', id:'1khH6ua2VTJNTeQyskQaJQPrdnHOO45ah'  },
+  { t:'vid', id:'1kA8Anmg1vKsf8XMl2mDar8bKqgHyhSdF'  },
+  { t:'vid', id:'116qOfC9hnWTp1gi3sU-4dnrKywaR_tkE'  },
+  { t:'vid', id:'18G2X-KbFb2GHXX1VoRK7r5__PT33tPU2'  },
+  { t:'vid', id:'1eHjwtNm5lSsORsNlbJglh0lO3kypJ9UP'  },
+  { t:'vid', id:'1tsq1OZ11_4bnZ_rZx1z1vY5wR9VTUogI'  },
+  { t:'vid', id:'1_2qdz4NKhvm-r36YkWtK3Fww3oAWxW7E'  },
+];
+
+const TOTAL     = slides.length;
+const IMG_DELAY = 5000; // ms per image slide
+const container = document.getElementById('slides');
+const ui        = document.getElementById('ui');
+const progressEl= document.getElementById('progress');
+const counterEl = document.getElementById('counter');
+
+let current  = 0;
+let playing  = true;
+let timer    = null;
+let progTimer= null;
+let progStart= null;
+let peekTimer= null;
+let brokenCount = 0;
+
+// ── Build slide DOM (lazy: only create when near current) ──
+const domSlides = new Array(TOTAL).fill(null);
+
+function buildSlide(i) {
+  if (domSlides[i]) return domSlides[i];
+  const s   = slides[i];
+  const div = document.createElement('div');
+  div.className = 'slide';
+
+  if (s.t === 'img') {
+    const loader = document.createElement('div');
+    loader.className = 'loader';
+    loader.innerHTML = '<div class="spinner"></div>';
+    div.appendChild(loader);
+
+    const img = document.createElement('img');
+    img.src = `https://drive.google.com/thumbnail?id=${s.id}&sz=w2048`;
+    img.alt = '';
+    img.onload  = () => loader.remove();
+    img.onerror = () => {
+      loader.remove();
+      brokenCount++;
+      if (brokenCount === 1) showAuthNotice();
+      // show a fallback via preview iframe instead
+      img.style.display = 'none';
+      const fb = document.createElement('iframe');
+      fb.src = `https://drive.google.com/file/d/${s.id}/preview`;
+      fb.allow = 'autoplay';
+      div.appendChild(fb);
+    };
+    div.appendChild(img);
+  } else {
+    const iframe = document.createElement('iframe');
+    iframe.src   = `https://drive.google.com/file/d/${s.id}/preview`;
+    iframe.allow = 'autoplay';
+    iframe.title = 'Video';
+    div.appendChild(iframe);
+  }
+
+  container.appendChild(div);
+  domSlides[i] = div;
+  return div;
+}
+
+// Preload window: build current ± 2
+function preload(i) {
+  for (let d = -2; d <= 2; d++) {
+    const idx = (i + d + TOTAL) % TOTAL;
+    buildSlide(idx);
+  }
+}
+
+// ── Navigation ──
+function goTo(i, fromUser = false) {
+  const prev = domSlides[current];
+  current = ((i % TOTAL) + TOTAL) % TOTAL;
+
+  if (prev) {
+    prev.classList.remove('active');
+    prev.classList.add('prev');
+    setTimeout(() => prev.classList.remove('prev'), 700);
+  }
+
+  const el = buildSlide(current);
+  el.classList.add('active');
+  preload(current);
+
+  counterEl.textContent = `${current + 1} / ${TOTAL}`;
+
+  // Auto-advance only for image slides
+  clearTimeout(timer);
+  clearInterval(progTimer);
+  progressEl.style.transition = 'none';
+  progressEl.style.width = '0%';
+
+  if (slides[current].t === 'img' && playing) {
+    startProgress();
+    timer = setTimeout(() => goTo(current + 1), IMG_DELAY);
+  } else {
+    // On video: fill progress bar fully (manual nav)
+    progressEl.style.width = '100%';
+  }
+
+  if (fromUser) peekUI();
+}
+
+function startProgress() {
+  progStart = Date.now();
+  progressEl.style.transition = `width ${IMG_DELAY}ms linear`;
+  progressEl.style.width = '100%';
+}
+
+function peekUI() {
+  ui.classList.add('peek');
+  clearTimeout(peekTimer);
+  peekTimer = setTimeout(() => ui.classList.remove('peek'), 2500);
+}
+
+// ── Controls ──
+document.getElementById('prev').addEventListener('click', (e) => {
+  e.stopPropagation();
+  goTo(current - 1, true);
+});
+document.getElementById('next').addEventListener('click', (e) => {
+  e.stopPropagation();
+  goTo(current + 1, true);
+});
+
+const pauseIcon = document.getElementById('pause-icon');
+const playIcon  = document.getElementById('play-icon');
+
+document.getElementById('playpause').addEventListener('click', (e) => {
+  e.stopPropagation();
+  playing = !playing;
+  pauseIcon.style.display = playing ? '' : 'none';
+  playIcon.style.display  = playing ? 'none' : '';
+
+  clearTimeout(timer);
+  clearInterval(progTimer);
+  if (playing && slides[current].t === 'img') {
+    startProgress();
+    timer = setTimeout(() => goTo(current + 1), IMG_DELAY);
+  } else if (!playing) {
+    // freeze progress bar width
+    const elapsed = Date.now() - (progStart || Date.now());
+    const frac    = Math.min(elapsed / IMG_DELAY, 1);
+    progressEl.style.transition = 'none';
+    progressEl.style.width = `${frac * 100}%`;
+  }
+  peekUI();
+});
+
+// ── Keyboard ──
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(current + 1, true); }
+  if (e.key === 'ArrowLeft')                   { e.preventDefault(); goTo(current - 1, true); }
+});
+
+// ── Touch / swipe ──
+let tx0 = null;
+document.addEventListener('touchstart', (e) => { tx0 = e.touches[0].clientX; }, { passive: true });
+document.addEventListener('touchend', (e) => {
+  if (tx0 === null) return;
+  const dx = e.changedTouches[0].clientX - tx0;
+  tx0 = null;
+  if (Math.abs(dx) > 40) {
+    goTo(dx < 0 ? current + 1 : current - 1, true);
+  } else {
+    peekUI();
+  }
+}, { passive: true });
+
+// ── Auth notice ──
+function showAuthNotice() {
+  const n = document.getElementById('auth-notice');
+  n.style.display = 'block';
+  setTimeout(() => { n.style.display = 'none'; }, 8000);
+}
+
+// ── Start ──
+goTo(0);
+</script>
+</body>
+</html>
