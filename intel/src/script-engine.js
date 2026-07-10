@@ -19,24 +19,63 @@ import { dateWindows, significanceCheck } from './metrics.js';
 import { getWeights, topHook, topProof } from './patterns.js';
 import { lintScript, COMPLIANT_CTAS, categorySensitivity } from './compliance.js';
 import { checkAgainstIncidents } from './competitive.js';
+import { findManualProduct, FRESHNESS_HOURS } from './manual.js';
 import { appendState } from './store.js';
 
 export async function generateScript(client, cfg, { product, category }) {
   const w = dateWindows();
 
-  // ---- 1. Live data or nothing ----
-  const gate = client.credentialGap();
-  if (gate) {
-    return fail('DATA_UNAVAILABLE', gate.detail, { product, category });
-  }
-
+  // ---- 1. Real data or nothing ----
+  // Two admissible sources, in order: the Open API (if credentialed), or
+  // operator-reported Affiliate Center readings (fresh ones only). Never
+  // an estimate.
   const affiliate = client.cfg.role === 'affiliate';
+  const gate = client.credentialGap();
 
   let p; // product record with live metrics
   let attributed = []; // seller mode only: attributed videos
   let sourcePull;
+  let manual = false;
 
-  if (affiliate) {
+  if (gate && affiliate) {
+    const entry = findManualProduct(product);
+    if (!entry) {
+      return fail(
+        'DATA_UNAVAILABLE',
+        `No API credentials and no operator-reported data for "${product}". ` +
+          'Open the Affiliate Center marketplace, read the real numbers off the screen, and log them: ' +
+          `intel log-product --name "${product}" --category <cat> --sold <N> --commission <R> — then re-run.`,
+        { product, category },
+      );
+    }
+    if (entry.stale) {
+      return fail(
+        'DATA_STALE',
+        `The last reading for "${entry.name}" is ${entry.age_hours}h old (limit ${FRESHNESS_HOURS}h). ` +
+          'Re-read the current numbers from the Affiliate Center and log them again — stale data is not reused.',
+        { product, category },
+      );
+    }
+    if (entry.units_sold_total < 100) {
+      return fail(
+        'BELOW_SIGNIFICANCE',
+        `"${entry.name}" shows only ${entry.units_sold_total} recorded sales — too thin to build a data-led script on. ` +
+          'Log a stronger product from the marketplace instead.',
+        { product, category },
+      );
+    }
+    manual = true;
+    p = {
+      title: entry.name,
+      category: entry.category,
+      units_sold: entry.units_sold_total,
+      commission_rate: entry.commission_rate,
+      price: entry.price,
+    };
+    sourcePull = { endpoint: entry.source, pulled_at: entry.logged_at };
+  } else if (gate) {
+    return fail('DATA_UNAVAILABLE', gate.detail, { product, category });
+  } else if (affiliate) {
     const feed = await client.marketplaceProducts({ keyword: product });
     if (!feed.ok) return fail('PRODUCT_DATA_UNAVAILABLE', `Marketplace pull failed for "${product}": ${feed.detail}`, { product, category });
     const products = feed.data?.products || [];
@@ -180,9 +219,14 @@ export async function generateScript(client, cfg, { product, category }) {
     brief,
     script,
     lint: lintResult,
-    note: script
-      ? null
-      : 'ANTHROPIC_API_KEY not set — brief emitted for the operating agent to voice. All numbers in data_points are live and sourced; use them verbatim.',
+    note: [
+      script
+        ? null
+        : 'ANTHROPIC_API_KEY not set — brief emitted for the operating agent to voice. All numbers in data_points are live and sourced; use them verbatim.',
+      manual
+        ? `Data source: operator-reported Affiliate Center reading from ${sourcePull.pulled_at} (within the ${FRESHNESS_HOURS}h freshness window). Numbers were read off TikTok's own dashboard, not pulled by API.`
+        : null,
+    ].filter(Boolean).join(' ') || null,
   };
   appendState('scripts', result, 200);
   return result;

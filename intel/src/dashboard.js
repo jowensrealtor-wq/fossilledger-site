@@ -20,11 +20,15 @@ import {
   engagementToConversion,
 } from './metrics.js';
 import { categorySensitivity } from './compliance.js';
+import { manualFeed, manualMomentum } from './manual.js';
 import { appendState, readState } from './store.js';
 
 export async function dailyPull(client, now = new Date()) {
   const gate = client.credentialGap();
   if (gate) {
+    // No API access: fall back to operator-reported Affiliate Center
+    // readings if any exist. Still zero synthesis — only logged numbers.
+    if (client.cfg.role === 'affiliate') return manualPull(gate, now);
     return {
       generated_at: now.toISOString(),
       mode: client.cfg.role,
@@ -34,6 +38,73 @@ export async function dailyPull(client, now = new Date()) {
     };
   }
   return client.cfg.role === 'affiliate' ? affiliatePull(client, now) : sellerPull(client, now);
+}
+
+function manualPull(gate, now) {
+  const feed = manualFeed();
+  if (!feed.length) {
+    return {
+      generated_at: now.toISOString(),
+      mode: 'affiliate (operator-reported)',
+      status: 'NO_DATA',
+      gaps: [
+        { what: 'API pulls', why: gate.detail, missing: gate.missing },
+        {
+          what: 'operator-reported data',
+          why: 'No Affiliate Center readings logged yet. Read the marketplace numbers off your screen and run: ' +
+            'intel log-product --name "<product>" --category <cat> --sold <N> --commission <R>. ' +
+            'Log the same products daily and momentum ranking activates from the second reading.',
+        },
+      ],
+      sections: null,
+    };
+  }
+
+  const momentum = manualMomentum(10);
+  const fresh = feed.filter((e) => !e.stale);
+  const staleCount = feed.length - fresh.length;
+  const breakouts = momentum.ranked
+    .filter((r) => (r.velocity ?? 0) >= 0.5 && (r.hours_between_snapshots ?? 999) <= 48)
+    .slice(0, 10);
+
+  const gaps = [{ what: 'API pulls', why: gate.detail, missing: gate.missing }];
+  if (momentum.baselines.length) {
+    gaps.push({
+      what: `momentum for ${momentum.baselines.length} product(s)`,
+      why: 'Single reading only — log a second reading of the same product to activate velocity ranking.',
+    });
+  }
+  if (staleCount) {
+    gaps.push({
+      what: `${staleCount} logged product(s)`,
+      why: `Readings older than the freshness window — re-read them from the Affiliate Center before scripting those products.`,
+    });
+  }
+  gaps.push({
+    what: 'engagement → conversion, order/commission summary',
+    why: 'Not available without API access. Your own video stats can be logged via `intel observe`.',
+    structural: true,
+  });
+
+  const surfaced = [...momentum.ranked, ...momentum.baselines];
+  const complianceFlags = surfaced
+    .map((p) => ({ product_id: p.product_id, name: p.name, ...categorySensitivity(p.category || p.name) }))
+    .filter((f) => f.level !== 'LOW');
+
+  const snapshot = {
+    generated_at: now.toISOString(),
+    mode: 'affiliate (operator-reported)',
+    status: 'OK',
+    sections: {
+      top10_momentum: momentum.ranked,
+      breakout_skus_48h: breakouts,
+      baselines: momentum.baselines,
+      compliance_flags: complianceFlags,
+    },
+    gaps,
+  };
+  appendState('pulls', snapshot);
+  return snapshot;
 }
 
 async function affiliatePull(client, now) {
@@ -187,6 +258,13 @@ export function renderDashboard(snap) {
   if (!s.breakout_skus_48h.length) L.push('- none detected');
   for (const p of s.breakout_skus_48h) {
     L.push(`- ${p.name ?? p.product_id}: ${p.units_48h ?? p.units_delta ?? p.units_sold_total ?? '?'} units${p.commission_rate != null ? `, commission ${p.commission_rate}%` : ''}`);
+  }
+
+  if (s.baselines?.length) {
+    L.push('', '## Baselines (one reading — momentum activates on the next log)');
+    for (const p of s.baselines) {
+      L.push(`- ${p.name}: ${p.units_sold_total} sold${p.commission_rate != null ? `, commission ${p.commission_rate}%` : ''} (logged ${p.sources[0].pulled_at})`);
+    }
   }
 
   if (s.commission_30d) {

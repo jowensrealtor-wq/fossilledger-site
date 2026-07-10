@@ -13,6 +13,31 @@ who also run the shop and unlocks the windowed shop-analytics endpoints.
 
 Requires Node 18+ (built-in `fetch`). No npm install needed.
 
+## No API access? Start here
+
+Most individual affiliates don't have Open API credentials — TikTok shows
+you the numbers in the **Affiliate Center UI** but doesn't hand creators
+API keys. The framework runs fully in that situation on
+**operator-reported readings**: you read the real numbers off your
+Affiliate Center screen and log them.
+
+```sh
+# Daily ritual (2 minutes): open the Affiliate Center marketplace,
+# log the products you're tracking with today's numbers:
+node intel/cli.js log-product --name "collagen gummies" --category supplements \
+     --sold 48200 --commission 20 --price 19.99
+
+node intel/cli.js daily-pull          # momentum activates from the 2nd reading
+node intel/cli.js script "collagen gummies"
+```
+
+The honesty rules adapt but don't relax: every entry records that it was
+operator-reported and when; readings older than **72 hours are refused**
+for script generation (re-read the screen, don't reuse); momentum needs
+two real readings of the same product; a sold count is mandatory to log
+at all. If you later obtain API credentials, the same commands switch to
+live pulls automatically — nothing else changes.
+
 ## Hard rules the code enforces
 
 1. **Only source: TikTok Shop's own APIs** (Partner/Open API at

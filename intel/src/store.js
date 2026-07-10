@@ -14,6 +14,7 @@ const FILES = {
   incidents: 'compliance-incidents.json', // observed flags/removals + trigger
   scripts: 'script-history.json', // generated scripts + the data behind them
   competitive: 'competitive-cycles.json', // competitive sweep results
+  manual: 'manual-entries.json', // operator-reported Affiliate Center readings
 };
 
 function fileFor(name) {

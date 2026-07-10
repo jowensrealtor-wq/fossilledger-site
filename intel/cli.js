@@ -3,6 +3,9 @@
 //
 //   node intel/cli.js daily-pull
 //   node intel/cli.js script "<product name | SKU>" [--category supplements]
+//   node intel/cli.js log-product --name "X" --category beauty --sold 4300 \
+//        --commission 15 [--price 14.99 --url URL]   (no-API mode: numbers
+//        read off the Affiliate Center screen)
 //   node intel/cli.js competitive-pull <category>
 //   node intel/cli.js analyze <category>
 //   node intel/cli.js observe --category X --url URL --hook stat-lead --proof data-fact \
@@ -17,6 +20,7 @@ import { generateScript } from './src/script-engine.js';
 import { competitivePull, logObservation, runAnalysisCycle } from './src/competitive.js';
 import { buildReport } from './src/report.js';
 import { readState } from './src/store.js';
+import { logProductSnapshot, manualFeed } from './src/manual.js';
 import { HOOK_TYPES, PROOF_TYPES } from './src/patterns.js';
 
 const cfg = loadConfig();
@@ -78,6 +82,23 @@ try {
       console.log(`logged: ${entry.video_url} [${entry.category}] ${entry.hook_type}/${entry.proof_type}`);
       break;
     }
+    case 'log-product': {
+      const entry = logProductSnapshot({
+        name: flags.name || flags._[0],
+        category: flags.category,
+        sold: flags.sold,
+        commission: flags.commission,
+        price: flags.price,
+        url: flags.url,
+      });
+      console.log(
+        `logged: ${entry.name} — ${entry.units_sold_total} sold` +
+          `${entry.commission_rate != null ? `, ${entry.commission_rate}% commission` : ''} (${entry.source} @ ${entry.logged_at})`,
+      );
+      const readings = manualFeed().length;
+      console.log(`products tracked: ${readings}. Log the same product again tomorrow to activate momentum ranking.`);
+      break;
+    }
     case 'report': {
       const cadence = flags._[0] === 'monthly' ? 'monthly' : 'weekly';
       console.log(buildReport({ cadence, category: flags.category || null }));
@@ -87,7 +108,12 @@ try {
       const missing = missingCredentials(cfg);
       console.log('TikTok Shop Intelligence Agent — status');
       console.log(`  role: ${cfg.role}${cfg.role === 'affiliate' ? ' (creator/commission mode — set TTS_ROLE=seller for shop analytics)' : ''}`);
-      console.log(`  credentials: ${missing.length ? `MISSING ${missing.join(', ')} (live pulls disabled — no synthetic fallback exists)` : 'configured'}`);
+      console.log(
+        `  credentials: ${missing.length
+          ? `MISSING ${missing.join(', ')} — API pulls disabled; running on operator-reported Affiliate Center readings (intel log-product). No synthetic fallback exists.`
+          : 'configured'}`,
+      );
+      console.log(`  operator-reported products tracked: ${manualFeed().length}`);
       console.log(`  prose generation: ${cfg.anthropicApiKey ? 'Claude API' : 'brief-only (set ANTHROPIC_API_KEY for in-engine prose)'}`);
       console.log(`  pulls stored: ${readState('pulls', []).length}`);
       console.log(`  competitive cycles: ${readState('competitive', []).length}`);
@@ -99,7 +125,7 @@ try {
     }
     default:
       die(
-        'commands: daily-pull | script <product> | competitive-pull <category> | analyze <category> | observe | report [weekly|monthly] | status',
+        'commands: daily-pull | script <product> | log-product | competitive-pull <category> | analyze <category> | observe | report [weekly|monthly] | status',
       );
   }
 } catch (err) {
