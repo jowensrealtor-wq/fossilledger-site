@@ -1,15 +1,20 @@
 # --- Core web framework ---
+# Plain uvicorn (no [standard]) so a fresh install needs NO C compiler on any
+# OS — important for Windows users without Visual C++ Build Tools. For a
+# production Linux deploy you may swap in `uvicorn[standard]` for extra speed.
 fastapi==0.111.0
-uvicorn[standard]==0.30.1
+uvicorn==0.30.1
 jinja2==3.1.4
 python-multipart==0.0.9
 
 # --- Scraping / ingestion ---
+# All pure-Python or ship prebuilt wheels: nothing here needs a compiler.
+# HTML parsing uses BeautifulSoup with Python's built-in html.parser, so lxml
+# is NOT required (it needs a C toolchain on Windows). Install lxml yourself
+# only if you want its faster parser and have build tools.
 requests==2.32.3
 beautifulsoup4==4.12.3
-lxml==5.2.2
 feedparser==6.0.11
-playwright==1.44.0            # only needed for JS-heavy portals; optional at runtime
 
 # --- Scheduling ---
 apscheduler==3.10.4
@@ -17,3 +22,10 @@ apscheduler==3.10.4
 # --- Config / data ---
 pyyaml==6.0.1
 python-dotenv==1.0.1
+
+# --- OPTIONAL: only for JS-heavy portals (sources with render_js: true) ---
+# Playwright pulls in `greenlet`, which needs a C compiler on Windows. It is
+# NOT installed by default and the app runs fine without it (JS-portal scrapers
+# log a clean skip). Install separately if you need it:
+#   pip install playwright && playwright install chromium
+# playwright==1.44.0

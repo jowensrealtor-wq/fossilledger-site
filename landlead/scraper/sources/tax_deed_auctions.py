@@ -77,7 +77,7 @@ class TaxDeedAuctionScraper(BaseScraper):
             raise ValueError(f"No tax_deed_auctions.url configured for {self.county}")
 
         html = self._get_html()
-        soup = BeautifulSoup(html, "lxml")
+        soup = BeautifulSoup(html, "html.parser")
 
         out: list[dict] = []
         seen: set[str] = set()

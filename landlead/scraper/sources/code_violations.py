@@ -74,7 +74,7 @@ class CodeViolationScraper(BaseScraper):
         if resp is None or resp.status_code != 200:
             raise RuntimeError(f"Code page returned "
                                f"{getattr(resp, 'status_code', 'n/a')}")
-        soup = BeautifulSoup(resp.text, "lxml")
+        soup = BeautifulSoup(resp.text, "html.parser")
         out = []
         for block in soup.find_all(["tr", "li", "div"]):
             text = " ".join(block.get_text(" ", strip=True).split())
