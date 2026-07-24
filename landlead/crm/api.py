@@ -26,6 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 
+from config.settings import get_settings
 from db import repo
 from db.database import init_db
 from db.repo import PIPELINE
@@ -56,17 +57,23 @@ def dashboard(request: Request,
               min_score: int | None = None,
               priority: bool = False,
               sort: str = "lead_score",
-              order: str = "desc"):
+              order: str = "desc",
+              show_all: bool = False):
+    # Default view = qualified buy-box leads only (vacant land in acreage band);
+    # ?show_all=true reveals every record incl. bare auction/legal notices.
     leads = repo.query_leads(status=status, state=state, county=county,
                              min_score=min_score, priority_only=priority,
-                             sort=sort, order=order)
+                             sort=sort, order=order,
+                             qualified_only=not show_all)
     stats = repo.dashboard_stats()
+    s = get_settings()
     # request-first signature: required by newer Starlette, supported since 0.29
     return templates.TemplateResponse(request, "dashboard.html", {
         "leads": leads, "stats": stats, "pipeline": PIPELINE,
+        "buybox": {"min": s.LEAD_MIN_ACRES, "max": s.LEAD_MAX_ACRES},
         "filters": {"status": status, "state": state, "county": county,
                     "min_score": min_score, "priority": priority,
-                    "sort": sort, "order": order},
+                    "sort": sort, "order": order, "show_all": show_all},
     })
 
 
