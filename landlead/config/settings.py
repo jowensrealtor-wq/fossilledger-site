@@ -59,6 +59,16 @@ class Settings:
     # --- Scoring / pipeline ---
     HIGH_PRIORITY_THRESHOLD: int = 70
 
+    # --- Buy-box: what counts as a target parcel ---
+    # Vacant land, acreage in [MIN, MAX]. These drive both server-side query
+    # filters and a client-side safety net, so only matching parcels ingest.
+    LEAD_MIN_ACRES: float = float(os.getenv("LEAD_MIN_ACRES", "5"))
+    LEAD_MAX_ACRES: float = float(os.getenv("LEAD_MAX_ACRES", "100"))
+    VACANT_ONLY: bool = _as_bool(os.getenv("LEAD_VACANT_ONLY"), True)
+    # Cap features pulled per source per run so a statewide layer stays bounded
+    # on a laptop. Raise for a fuller sweep.
+    MAX_FEATURES_PER_SOURCE: int = int(os.getenv("MAX_FEATURES_PER_SOURCE", "8000"))
+
     @property
     def sqlite_path(self) -> str | None:
         if self.DATABASE_URL.startswith("sqlite:///"):

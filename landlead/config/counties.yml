@@ -15,25 +15,83 @@
 # ==========================================================================
 
 defaults:
-  # Field-name candidates the parcel normalizer will look for (case-insensitive).
-  # Different county layers name things differently; we probe this list in order.
-  apn_fields:      [APN, PARCELID, PARCEL_ID, PIN, PARCELNO, PARCEL_NUM, GPIN, STRAP]
-  owner_fields:    [OWNER, OWNERNME1, OWNER_NAME, OWNERNAME, NAME, OWN_NAME]
-  mailing_fields:  [MAILADDR, MAIL_ADDR, OWNERADDR, MAILINGADD, MAIL_ADDRESS, OWN_ADRNO]
-  situs_fields:    [SITEADDR, SITUS, SITUS_ADDR, PROPADDR, LOCATION, PHYADDR]
-  acreage_fields:  [ACRES, ACREAGE, GISACRES, DEED_ACRES, CALCACRES, LAND_ACRES]
-  landuse_fields:  [LANDUSE, USE_CODE, PROPTYPE, LUCODE, CLASS, PROP_CLASS]
-  landval_fields:  [LANDVAL, LAND_VALUE, LNDVALUE, ASSDLAND, LAND_VAL]
+  # Field-name candidates the parcel normalizer probes (case-insensitive, in
+  # order). Different layers name things differently; the scraper reads the
+  # live layer metadata and picks the first candidate that exists. The lists
+  # include the Florida DOR statewide-cadastral schema (OWN_NAME, OWN_ADDR1,
+  # PHY_ADDR1, DOR_UC, LND_SQFOOT, JV/LND_VAL, CO_NO) so the statewide FL
+  # source below works out of the box.
+  apn_fields:      [APN, PARCELID, PARCEL_ID, PIN, PARCELNO, PARCEL_NUM, GPIN, STRAP, ALTKEY, PRINT_KEY, SBL, LOCALPARCELID, GPIN_LONG]
+  owner_fields:    [OWNER, OWNERNME1, OWNER_NAME, OWNERNAME, NAME, OWN_NAME, PRIMARY_OWNER, OWNERNAME1]
+  mailing_fields:  [MAILADDR, MAIL_ADDR, OWNERADDR, MAILINGADD, MAIL_ADDRESS, OWN_ADRNO, OWN_ADDR1, MAIL_ADDRESS1, PARCEL_ADDR]
+  situs_fields:    [SITEADDR, SITUS, SITUS_ADDR, PROPADDR, LOCATION, PHYADDR, PHY_ADDR1, LOC_ADDR, PARCEL_ADDR]
+  # Acreage as a direct acres value...
+  acreage_fields:  [ACRES, ACREAGE, GISACRES, DEED_ACRES, CALCACRES, LAND_ACRES, GIS_ACRES, CALC_ACREAGE, CALC_ACRES]
+  # ...or, if only land area in square feet is published, derive acres from it.
+  acreage_sqft_fields: [LND_SQFOOT, LANDSQFT, LAND_SQFT, SHAPE_AREA_SQFT, GISSQFT]
+  landuse_fields:  [LANDUSE, USE_CODE, PROPTYPE, LUCODE, CLASS, PROP_CLASS, DOR_UC, PA_UC, PROPCLASS, LANDUSECOD]
+  landval_fields:  [LANDVAL, LAND_VALUE, LNDVALUE, ASSDLAND, LAND_VAL, JV, LND_VAL, LANDAV]
+  county_fields:   [COUNTY, CO_NO, COUNTYNAME, CNTY, CO_NAME, COUNTY_NAME, MUNI_NAME, JURISDICTION]
 
 counties:
-  - name: Polk
+  # -----------------------------------------------------------------------
+  # FLAGSHIP SOURCE — Florida Statewide Cadastral (all 67 counties, one call).
+  # Published by FL DOR / FGIO; carries owner, mailing, situs, land-use (DOR_UC),
+  # land square-footage, and valuation for every FL parcel. `statewide: true`
+  # tells the scraper to read each parcel's own county. The buy-box filter
+  # (vacant, 5-100 acres) is applied server- and client-side, so a run returns
+  # matching vacant tracts across Florida, not millions of rows.
+  # Source: services9.arcgis.com/Gh9awoU677aKree0 (Florida_Statewide_Cadastral)
+  # -----------------------------------------------------------------------
+  - name: Florida (Statewide)
     state: FL
-    fips: "12105"
-    notes: "Large inventory of unimproved acreage; active tax-deed program."
+    fips: "12"
+    notes: "All 67 FL counties in one layer; vacant DOR use codes 00/10/40/70."
     sources:
       parcels:
-        arcgis_url: "https://gis.polk-county.net/arcgis/rest/services/Parcels/MapServer/0"
-        vacant_landuse_codes: ["00", "0000", "10", "40", "99"]  # FL DOR-style vacant codes
+        arcgis_url: "https://services9.arcgis.com/Gh9awoU677aKree0/arcgis/rest/services/Florida_Statewide_Cadastral/FeatureServer/0"
+        statewide: true
+        vacant_landuse_codes: ["00", "0000", "10", "40", "70", "99"]
+
+  # -----------------------------------------------------------------------
+  # New York — NYS Tax Parcels Public (statewide; the ~38 counties that opted
+  # in to public sharing). Property-class codes 3xx = vacant land.
+  # Source: gisservices.its.ny.gov  (NYS_Tax_Parcels_Public)
+  # -----------------------------------------------------------------------
+  - name: New York (Statewide)
+    state: NY
+    fips: "36"
+    notes: "Catskills/upstate recreational land; property class 3xx = vacant."
+    sources:
+      parcels:
+        arcgis_url: "https://gisservices.its.ny.gov/arcgis/rest/services/NYS_Tax_Parcels_Public/FeatureServer/0"
+        statewide: true
+        vacant_landuse_codes: ["311","312","314","320","321","322","323","330","331","340","341","350","380"]
+
+  # -----------------------------------------------------------------------
+  # Virginia — VGIN statewide parcels. The statewide layer has no single
+  # uniform land-use code, so we DON'T require the vacant flag here and let the
+  # 5-100 acre band be the target signal (predominantly land at that size).
+  # Source: gismaps.vdem.virginia.gov  (VA_Base_Layers/VA_Parcels)
+  # -----------------------------------------------------------------------
+  - name: Virginia (Statewide)
+    state: VA
+    fips: "51"
+    notes: "Statewide parcels; acreage-driven (no uniform state land-use code)."
+    sources:
+      parcels:
+        arcgis_url: "https://gismaps.vdem.virginia.gov/arcgis/rest/services/VA_Base_Layers/VA_Parcels/FeatureServer/0"
+        statewide: true
+        require_vacant: false
+
+  # -----------------------------------------------------------------------
+  # County-level NON-parcel sources (auction + legal notices). These layer
+  # extra distress signals onto parcels the statewide sources already ingest.
+  # The FL counties below are covered for parcels by "Florida (Statewide)".
+  # -----------------------------------------------------------------------
+  - name: Polk
+    state: FL
+    sources:
       tax_deed_auctions:
         url: "https://www.polk.realtaxdeed.com/"
       legal_notices:
@@ -41,84 +99,28 @@ counties:
 
   - name: Marion
     state: FL
-    fips: "12083"
     sources:
-      parcels:
-        arcgis_url: "https://services1.arcgis.com/8Pc9XBTAsYuxx9Ny/arcgis/rest/services/Parcels/FeatureServer/0"
-        vacant_landuse_codes: ["00", "0000", "10", "40", "99"]
       tax_deed_auctions:
         url: "https://www.marion.realtaxdeed.com/"
 
   - name: Charlotte
     state: FL
-    fips: "12015"
-    notes: "North Port / Port Charlotte legacy platted lots — huge vacant lot count."
+    notes: "North Port / Port Charlotte legacy platted lots."
     sources:
-      parcels:
-        arcgis_url: "https://ccgis.charlottecountyfl.gov/arcgis/rest/services/Parcels/MapServer/0"
-        vacant_landuse_codes: ["00", "0000", "10", "99"]
       tax_deed_auctions:
         url: "https://www.charlotte.realtaxdeed.com/"
 
-  - name: Chatham
-    state: GA
-    fips: "13051"
-    sources:
-      parcels:
-        arcgis_url: "https://services5.arcgis.com/6QCEyBKtWzHu5W9d/arcgis/rest/services/Parcels/FeatureServer/0"
-      tax_deed_auctions:
-        url: "https://www.chathamcounty.org/government/departments/tax-commissioner/property-tax/tax-sale-information"
-
-  - name: Cherokee
-    state: GA
-    fips: "13057"
-    sources:
-      parcels:
-        arcgis_url: "https://services1.arcgis.com/aED8Ds1yy1G0aJUM/arcgis/rest/services/Parcels/FeatureServer/0"
-
-  - name: Brunswick
-    state: NC
-    fips: "37019"
-    notes: "Coastal NC; strong land-value appreciation, many out-of-state owners."
-    sources:
-      parcels:
-        arcgis_url: "https://services1.arcgis.com/2Ck3Fj0m3vT6gYnV/arcgis/rest/services/Parcels/FeatureServer/0"
-      legal_notices:
-        rss: "https://www.publicnoticenc.com/rss"
-
-  - name: Horry
-    state: SC
-    fips: "45051"
-    notes: "Myrtle Beach corridor; heavy speculative land holding."
-    sources:
-      parcels:
-        arcgis_url: "https://services1.arcgis.com/xTEMqcM49dOMXwXk/arcgis/rest/services/Parcels/FeatureServer/0"
-      tax_deed_auctions:
-        url: "https://www.horrycountysc.gov/departments/delinquent-tax/"
-
-  - name: Spotsylvania
-    state: VA
-    fips: "51177"
-    sources:
-      parcels:
-        arcgis_url: "https://services1.arcgis.com/Wg3xB1B6mQ6mZ3aC/arcgis/rest/services/Parcels/FeatureServer/0"
-
-  - name: Monroe
-    state: PA
-    fips: "42089"
-    notes: "Poconos; enormous inventory of small recreational lots, many delinquent."
-    sources:
-      parcels:
-        arcgis_url: "https://services2.arcgis.com/gWRTM5w6Yq0Xz2C/arcgis/rest/services/Parcels/FeatureServer/0"
-      tax_deed_auctions:
-        url: "https://www.monroecountypa.gov/Dept/TaxClaim/Pages/default.aspx"
-
   - name: Sullivan
     state: NY
-    fips: "36105"
     notes: "Catskills; second-home / recreational land, absentee-heavy."
     sources:
-      parcels:
-        arcgis_url: "https://services6.arcgis.com/EbVsqZ18sv1kVJ3k/arcgis/rest/services/Parcels/FeatureServer/0"
       tax_deed_auctions:
         url: "https://sullivanny.us/Departments/RealPropertyTax"
+
+  # -----------------------------------------------------------------------
+  # More Eastern-US states to enable next (GA, NC, SC, PA). Each needs a
+  # VERIFIED statewide or county parcel endpoint + that state's vacant land-use
+  # codes. Placeholder guesses were removed so runs stay honest; add real
+  # endpoints here (same shape as the statewide entries above) as they're
+  # confirmed against a live run.
+  # -----------------------------------------------------------------------

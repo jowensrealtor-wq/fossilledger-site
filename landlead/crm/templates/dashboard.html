@@ -18,8 +18,17 @@
   {% endfor %}
 </section>
 
+<div class="buybox-bar">
+  🎯 Buy-box: <strong>vacant land, {{ buybox.min|int }}–{{ buybox.max|int }} acres</strong>, East Coast.
+  {% if filters.show_all %}
+    Showing <strong>all records</strong> (incl. bare notices). <a href="/">Show buy-box only</a>
+  {% else %}
+    Showing <strong>matching parcels only</strong>. <a href="/?show_all=true">Show everything</a>
+  {% endif %}
+</div>
+
 <form class="filters" method="get" action="/">
-  <input type="text" name="state" placeholder="State (FL, GA…)" value="{{ filters.state or '' }}">
+  <input type="text" name="state" placeholder="State (FL, NY…)" value="{{ filters.state or '' }}">
   <input type="text" name="county" placeholder="County" value="{{ filters.county or '' }}">
   <input type="number" name="min_score" placeholder="Min score" value="{{ filters.min_score or '' }}">
   <select name="status">
@@ -29,6 +38,7 @@
     {% endfor %}
   </select>
   <label class="chk"><input type="checkbox" name="priority" value="true" {% if filters.priority %}checked{% endif %}> Priority only</label>
+  {% if filters.show_all %}<input type="hidden" name="show_all" value="true">{% endif %}
   <button class="btn" type="submit">Filter</button>
 </form>
 

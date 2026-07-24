@@ -60,9 +60,25 @@ No code changes — the registry runs each configured source per county. Add a n
 *source type* by dropping a `BaseScraper` subclass in `scraper/sources/` and
 registering one line in `scraper/registry.py`.
 
+## Buy-box (what gets surfaced)
+
+The pipeline targets **vacant land, 5–100 acres, Eastern US** — configurable via
+`LEAD_MIN_ACRES` / `LEAD_MAX_ACRES` / `LEAD_VACANT_ONLY`. Parcels outside the
+band (or improved, when vacant-only is on) are dropped at ingest, and the
+dashboard defaults to buy-box matches only (`?show_all=true` reveals everything,
+including bare auction/legal notices). The ArcGIS scraper pushes the acreage
+filter into the server-side query, so a statewide layer returns just the
+matching tracts — not millions of rows.
+
 ## Data sources (and their status)
 
-**Live (public / open data):**
+**Live parcel sources — verified statewide services (cover whole states in one call):**
+- **Florida** — DOR Statewide Cadastral (all 67 counties; owner, mailing, situs,
+  DOR use code, land sq-ft, value). Vacant DOR codes 00/10/40/70.
+- **New York** — NYS Tax Parcels Public (opt-in counties; property class 3xx = vacant).
+- **Virginia** — VGIN statewide parcels (acreage-driven; no uniform state use code).
+
+**Other live (public / open data):**
 - Open Esri **ArcGIS parcel** REST services — designed for programmatic query.
 - **Tax-deed / tax-lien auction** notice pages (treasurer/sheriff sales).
 - **Legal notices** via RSS/Atom (estate, land sale, guardianship).
@@ -77,10 +93,12 @@ registering one line in `scraper/registry.py`.
 - **Skip tracing** (TLO / BatchSkipTracing / IDI) — connector stubs; require an
   API key **and** a permissible purpose.
 
-> County ArcGIS endpoints in `counties.yml` are real published services where
-> known, but counties re-home them periodically. A dead endpoint is logged and
-> skipped (never fatal); update the URL from the county's open-data portal.
-> Check the run log at `GET /api/scrape_log` or the `scrape_log` table.
+> Parcel endpoints in `counties.yml` are real published services, but agencies
+> re-home them periodically and each state codes land use differently. A dead
+> endpoint or bad field guess is logged and skipped (never fatal), and the
+> scraper self-heals a bad server-side filter by retrying unfiltered. Add more
+> states (GA, NC, SC, PA…) by dropping their verified statewide/county endpoint
+> and vacant codes into `counties.yml`. Check `GET /api/scrape_log` for what ran.
 
 ## Key endpoints
 

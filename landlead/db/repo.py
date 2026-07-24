@@ -172,7 +172,8 @@ def all_leads() -> list[dict]:
 def query_leads(status: str | None = None, state: str | None = None,
                 county: str | None = None, min_score: int | None = None,
                 priority_only: bool = False, sort: str = "lead_score",
-                order: str = "desc", limit: int = 500) -> list[dict]:
+                order: str = "desc", limit: int = 500,
+                qualified_only: bool = False) -> list[dict]:
     clauses: list[str] = []
     params: list[Any] = []
     if status:
@@ -185,6 +186,13 @@ def query_leads(status: str | None = None, state: str | None = None,
         clauses.append("lead_score >= ?"); params.append(min_score)
     if priority_only:
         clauses.append("priority = 1")
+    if qualified_only:
+        # Buy-box: only parcels with acreage in the configured band. Hides
+        # bare APN-only records (e.g. auction notices with no acreage).
+        from config.settings import get_settings
+        s = get_settings()
+        clauses.append("acreage IS NOT NULL AND acreage >= ? AND acreage <= ?")
+        params.extend([s.LEAD_MIN_ACRES, s.LEAD_MAX_ACRES])
 
     allowed_sort = {"lead_score", "created_at", "updated_at", "acreage",
                     "land_value", "county", "state", "status"}
