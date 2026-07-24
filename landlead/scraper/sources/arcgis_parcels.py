@@ -45,6 +45,11 @@ class ArcGISParcelScraper(BaseScraper):
             for c in parcels_cfg.get("vacant_landuse_codes", [])
         }
         self.statewide = bool(parcels_cfg.get("statewide"))
+        # ArcGIS REST /query endpoints are public data APIs meant for
+        # programmatic use, not crawlable web pages, so robots.txt (a
+        # crawler-indexing directive) does not gate them. Rate-limit + honest
+        # UA still apply. Set enforce_robots=False AFTER super().__init__.
+        self.enforce_robots = False
         self.fields = load_field_defaults()
         s = get_settings()
         self.min_acres = s.LEAD_MIN_ACRES
@@ -173,7 +178,9 @@ class ArcGISParcelScraper(BaseScraper):
         return (first_present(attrs, self.fields.get("county_fields", []))
                 or self.county)
 
-    def _normalize(self, feature: dict) -> dict | None:
+    def _build(self, feature: dict) -> dict | None:
+        """Normalize a feature into a record (no buy-box filtering here — that
+        and the diagnostic counting happen in fetch())."""
         attrs = feature.get("attributes", {})
         apn = first_present(attrs, self.fields.get("apn_fields", []))
         if not apn:
@@ -181,13 +188,6 @@ class ArcGISParcelScraper(BaseScraper):
 
         acreage = self._acreage(attrs)
         vacant = self._is_vacant(attrs)
-
-        # Buy-box enforcement (client-side safety net over the server filter).
-        if acreage is None or not (self.min_acres <= acreage <= self.max_acres):
-            return None
-        if self.vacant_only and not vacant:
-            return None
-
         mailing = self._mailing(attrs)
         situs = self._situs(attrs)
         owner = first_present(attrs, self.fields.get("owner_fields", []))
@@ -210,7 +210,7 @@ class ArcGISParcelScraper(BaseScraper):
             "owner_name": str(owner).strip() if owner else None,
             "owner_mailing_address": mailing,
             "property_address": situs,
-            "acreage": round(acreage, 2),
+            "acreage": round(acreage, 2) if acreage is not None else None,
             "land_value": landval_val,
             "latitude": lat,
             "longitude": lon,
@@ -227,6 +227,7 @@ class ArcGISParcelScraper(BaseScraper):
         where = self._where_clause()
 
         collected: list[dict] = []
+        fetched = in_band = vacant_in_band = no_apn = 0
         offset = 0
         while offset < self.max_features:
             page, where_rejected = self._query_page(offset, where)
@@ -235,14 +236,35 @@ class ArcGISParcelScraper(BaseScraper):
                 where = "1=1"
                 offset = 0
                 collected.clear()
+                fetched = in_band = vacant_in_band = no_apn = 0
                 continue
             if not page:
                 break
             for feature in page:
-                rec = self._normalize(feature)
-                if rec:
-                    collected.append(rec)
+                fetched += 1
+                rec = self._build(feature)
+                if rec is None:
+                    no_apn += 1
+                    continue
+                acreage = rec["acreage"]
+                if acreage is None or not (self.min_acres <= acreage <= self.max_acres):
+                    continue
+                in_band += 1
+                if rec["vacant_confirmed"]:
+                    vacant_in_band += 1
+                if self.vacant_only and not rec["vacant_confirmed"]:
+                    continue
+                collected.append(rec)
             if len(page) < PAGE_SIZE:
                 break
             offset += PAGE_SIZE
+
+        # Diagnostic breadcrumb -> scrape_log, so a "0 kept" run explains itself:
+        # where the drop-off happened (fetch -> acreage band -> vacant -> kept)
+        # and which fields were resolved from the live layer.
+        acre_src = self._acre_field or (self._sqft_field and f"{self._sqft_field}(sqft)") or "NONE"
+        self.note = (f"fetched={fetched} no_apn={no_apn} in_band={in_band} "
+                     f"vacant_in_band={vacant_in_band} kept={len(collected)} "
+                     f"acre_field={acre_src} vacant_only={self.vacant_only} "
+                     f"where=({where})")
         return collected

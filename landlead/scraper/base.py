@@ -56,10 +56,17 @@ class BaseScraper:
         self.state = self.county_cfg.get("state")
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": self.settings.USER_AGENT})
+        # HTML page scrapers honor robots.txt. Data-API scrapers (documented
+        # REST endpoints published for programmatic query) set this False:
+        # robots.txt is a directive for crawlers indexing pages, not a gate on
+        # a public data API. Rate-limiting + honest UA still apply everywhere.
+        self.enforce_robots = self.settings.RESPECT_ROBOTS
+        # Optional short diagnostic a scraper can set; surfaced in scrape_log.
+        self.note: str | None = None
 
     # -- politeness helpers --------------------------------------------------
     def _robots_ok(self, url: str) -> bool:
-        if not self.settings.RESPECT_ROBOTS:
+        if not self.enforce_robots or not self.settings.RESPECT_ROBOTS:
             return True
         parsed = urlparse(url)
         root = f"{parsed.scheme}://{parsed.netloc}"
@@ -117,7 +124,9 @@ class BaseScraper:
                 )
             result.records = records
             result.status = "ok"
-            repo.log_finish(log_id, "ok", records_found=len(records))
+            result.message = self.note
+            repo.log_finish(log_id, "ok", records_found=len(records),
+                            message=self.note)
         except PermissionError as exc:
             result.status = "skipped"
             result.message = str(exc)

@@ -13,8 +13,14 @@ enabling optional sources or contacting anyone.
   identities specifically to evade a site's access controls can implicate the
   CFAA and virtually always breaches site terms — this project deliberately
   does not do it.
-- **robots.txt.** Honored by default (`SCRAPER_RESPECT_ROBOTS=true`). A source
-  disallowed by robots.txt is skipped and logged, not fetched.
+- **robots.txt.** Honored for **HTML page scrapers** (auction/probate/code/RSS):
+  a page disallowed by robots.txt is skipped and logged, not fetched.
+  **Documented open-data REST APIs** (the ArcGIS parcel `/query` endpoints) are
+  treated as APIs, not crawlable pages — robots.txt is the Robots Exclusion
+  Protocol for crawlers indexing site pages, and these endpoints are published
+  by the agencies specifically for programmatic query (every GIS client uses
+  them). They are queried directly, still under rate-limiting and an honest UA.
+  Set `SCRAPER_RESPECT_ROBOTS=false` to disable robots globally if you prefer.
 - **Rate limiting.** A minimum per-host delay (`SCRAPER_RATE_LIMIT_SECONDS`)
   is enforced so a source is never hammered.
 - **Fault tolerance.** A failing source logs the error to `scrape_log` and the
