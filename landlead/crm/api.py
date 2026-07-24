@@ -61,8 +61,9 @@ def dashboard(request: Request,
                              min_score=min_score, priority_only=priority,
                              sort=sort, order=order)
     stats = repo.dashboard_stats()
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request, "leads": leads, "stats": stats, "pipeline": PIPELINE,
+    # request-first signature: required by newer Starlette, supported since 0.29
+    return templates.TemplateResponse(request, "dashboard.html", {
+        "leads": leads, "stats": stats, "pipeline": PIPELINE,
         "filters": {"status": status, "state": state, "county": county,
                     "min_score": min_score, "priority": priority,
                     "sort": sort, "order": order},
@@ -75,8 +76,7 @@ def lead_detail(request: Request, lead_id: int):
     if not lead:
         return HTMLResponse("Lead not found", status_code=404)
     _, letter_preview = render_letter(lead)
-    return templates.TemplateResponse("lead_detail.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "lead_detail.html", {
         "lead": lead,
         "contacts": repo.get_contacts(lead_id),
         "notes": repo.get_notes(lead_id),
