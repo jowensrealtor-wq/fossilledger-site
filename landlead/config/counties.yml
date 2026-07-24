@@ -80,7 +80,7 @@ counties:
     notes: "Statewide parcels; acreage-driven (no uniform state land-use code)."
     sources:
       parcels:
-        arcgis_url: "https://gismaps.vdem.virginia.gov/arcgis/rest/services/VA_Base_Layers/VA_Parcels/FeatureServer/0"
+        arcgis_url: "https://vginmaps.vdem.virginia.gov/arcgis/rest/services/VA_Base_Layers/VA_Parcels/FeatureServer/0"
         statewide: true
         require_vacant: false
 
