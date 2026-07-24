@@ -87,7 +87,10 @@ def main(argv: list[str] | None = None) -> int:
         log.info("Scheduler started.")
 
     log.info("Serving CRM at http://%s:%d", args.host, args.port)
-    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    # ws="none": the CRM uses no websockets, and skipping the ws protocol
+    # avoids uvicorn/websockets version-mismatch ImportErrors on user machines
+    # (e.g. "cannot import name 'ServerProtocol' from 'websockets.server'").
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info", ws="none")
     return 0
 
 
