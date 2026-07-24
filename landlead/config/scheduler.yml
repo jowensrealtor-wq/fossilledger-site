@@ -1,0 +1,32 @@
+# Scheduler configuration. Intervals are cron-compatible (APScheduler cron).
+# A missed run never blocks the next; failures are logged, not fatal.
+jobs:
+  - id: parcels_ingest
+    description: "Pull/refresh parcel + vacant-land data for all target counties"
+    trigger: cron
+    hour: 2            # 02:00 daily, off-peak for county servers
+    minute: 0
+
+  - id: auctions_ingest
+    description: "Scrape tax-deed / tax-lien auction notices"
+    trigger: cron
+    hour: 3
+    minute: 0
+
+  - id: legal_notices_ingest
+    description: "Pull newspaper / court legal-notice RSS feeds"
+    trigger: cron
+    hour: "*/6"        # every 6 hours
+    minute: 15
+
+  - id: score_and_dedup
+    description: "Re-run enrichment: score, dedup by APN, promote high-priority"
+    trigger: cron
+    hour: 4
+    minute: 0
+
+  - id: build_followups
+    description: "Generate follow-up tasks + queue mail for high-priority leads"
+    trigger: cron
+    hour: 5
+    minute: 0

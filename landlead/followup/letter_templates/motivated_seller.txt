@@ -1,0 +1,26 @@
+{{ date }}
+
+{{ owner_name }}
+{{ owner_mailing_address }}
+
+Re: Your property at {{ property_address }} (Parcel {{ apn }})
+
+Dear {{ owner_name_salutation }},
+
+My name is {{ agent_name }}, and I work with landowners here in {{ county }} County, {{ state }}. I'm reaching out because I may be interested in purchasing your {{ acreage_phrase }}parcel at {{ property_address }}.
+
+There's no cost or obligation on your part. If you've thought about selling — even someday — I'd welcome a short conversation about what the land is worth to you and whether a simple, as-is cash sale might make sense. I handle the paperwork and closing costs, and you don't need to clean up, survey, or improve anything.
+
+If now isn't the right time, no problem at all — feel free to keep this letter in case that changes.
+
+You can reach me directly at {{ agent_phone }} or {{ agent_email }}.
+
+Warm regards,
+
+{{ agent_name }}
+{{ agent_company }}
+{{ agent_phone }} | {{ agent_email }}
+
+---
+This is a solicitation to purchase real property. If you would prefer not to
+receive further letters, please let me know and I will remove you from my list.

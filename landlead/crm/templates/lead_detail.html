@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}{{ lead.apn }} · LandLead{% endblock %}
+{% block content %}
+
+<a href="/" class="back">← All leads</a>
+
+<div class="detail-grid">
+  <section class="card">
+    <div class="detail-head">
+      <h1>Parcel {{ lead.apn }}</h1>
+      <span class="score score-{{ (lead.lead_score // 20) }} big">{{ lead.lead_score }}</span>
+    </div>
+    <p class="sub">{{ lead.county }} County, {{ lead.state }}
+      {% if lead.priority %}<span class="tag prob">HIGH PRIORITY</span>{% endif %}</p>
+
+    <dl class="facts">
+      <dt>Owner</dt><dd>{{ lead.owner_name or '—' }}</dd>
+      <dt>Mailing</dt><dd>{{ lead.owner_mailing_address or '—' }}</dd>
+      <dt>Property</dt><dd>{{ lead.property_address or '—' }}</dd>
+      <dt>Acreage</dt><dd>{{ '%.2f'|format(lead.acreage) if lead.acreage else '—' }}</dd>
+      <dt>Land value</dt><dd>{{ '${:,.0f}'.format(lead.land_value) if lead.land_value else '—' }}</dd>
+      <dt>Last sale</dt><dd>{{ lead.last_sale_date or '—' }}</dd>
+      <dt>Sources</dt><dd>{{ lead.sources|join(', ') if lead.sources else '—' }}</dd>
+    </dl>
+
+    <div class="signals big-signals">
+      {% if lead.tax_delinquent %}<span class="tag tax">TAX DELINQUENT{% if lead.tax_delinquent_amount %} ${{ '%.0f'|format(lead.tax_delinquent_amount) }}{% endif %}</span>{% endif %}
+      {% if lead.probate_signal %}<span class="tag prob">PROBATE</span>{% endif %}
+      {% if lead.absentee %}<span class="tag abs">ABSENTEE</span>{% endif %}
+      {% if lead.out_of_state_owner %}<span class="tag oos">OUT-OF-STATE</span>{% endif %}
+      {% if lead.code_violation %}<span class="tag code">CODE VIOLATION</span>{% endif %}
+      {% if lead.vacant_confirmed %}<span class="tag vac">VACANT</span>{% endif %}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Pipeline</h2>
+    <form method="post" action="/api/leads/{{ lead.id }}/status" onsubmit="return postForm(event, true)">
+      <div class="stage-picker">
+        {% for stage in pipeline %}
+          <label class="{{ 'active' if lead.status == stage else '' }}">
+            <input type="radio" name="status" value="{{ stage }}" {% if lead.status == stage %}checked{% endif %}> {{ stage }}
+          </label>
+        {% endfor %}
+      </div>
+      <button class="btn" type="submit">Update stage</button>
+    </form>
+
+    <h2>Score breakdown</h2>
+    <ul class="breakdown">
+      {% for label, pts in lead.score_breakdown.items() %}
+        <li><span>{{ label }}</span><span class="pts">+{{ pts }}</span></li>
+      {% else %}<li class="muted">Not yet scored.</li>{% endfor %}
+    </ul>
+
+    <h2>Actions</h2>
+    <div class="actions">
+      <button class="btn" onclick="post('/api/leads/{{ lead.id }}/queue_mail')">📨 Queue letter</button>
+      <button class="btn" onclick="post('/api/leads/{{ lead.id }}/skiptrace')">🔎 Skip trace</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Contacts</h2>
+    <ul class="list">
+      {% for c in contacts %}
+        <li>{{ c.name or '—' }} · {{ c.phone or '' }} {{ c.email or '' }}
+          <span class="muted">({{ c.provider }})</span></li>
+      {% else %}<li class="muted">No contact info yet. Run skip trace (requires configured provider).</li>{% endfor %}
+    </ul>
+
+    <h2>Tasks</h2>
+    <ul class="list">
+      {% for t in tasks %}
+        <li class="task-{{ t.status }}">
+          <strong>{{ t.type }}</strong> — {{ t.detail }} <span class="muted">due {{ t.due_date or '—' }}</span>
+          {% if t.status == 'open' %}
+            <button class="mini" onclick="post('/api/tasks/{{ t.id }}/complete')">done</button>
+          {% else %}<span class="done-flag">✓ {{ t.status }}</span>{% endif %}
+        </li>
+      {% else %}<li class="muted">No tasks.</li>{% endfor %}
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Notes</h2>
+    <form method="post" action="/api/leads/{{ lead.id }}/notes" onsubmit="return postForm(event, true)">
+      <textarea name="body" placeholder="Add a note…" required></textarea>
+      <button class="btn" type="submit">Add note</button>
+    </form>
+    <ul class="list notes">
+      {% for n in notes %}
+        <li><span class="muted">{{ n.created_at }} · {{ n.author }}</span><br>{{ n.body }}</li>
+      {% else %}<li class="muted">No notes.</li>{% endfor %}
+    </ul>
+
+    <h2>Status history</h2>
+    <ul class="list small">
+      {% for h in history %}
+        <li>{{ h.changed_at }}: {{ h.from_status or '(new)' }} → <strong>{{ h.to_status }}</strong></li>
+      {% else %}<li class="muted">—</li>{% endfor %}
+    </ul>
+  </section>
+
+  <section class="card wide">
+    <h2>Merge-ready letter preview</h2>
+    <pre class="letter">{{ letter_preview }}</pre>
+  </section>
+</div>
+
+<script>
+  async function post(url){
+    const r = await fetch(url, {method:'POST'});
+    const j = await r.json();
+    if(!j.ok && j.error){ alert(j.error); } else { location.reload(); }
+  }
+  async function postForm(e, reload){
+    e.preventDefault();
+    const f = e.target;
+    const r = await fetch(f.action, {method:'POST', body:new FormData(f)});
+    const j = await r.json();
+    if(!j.ok && j.error){ alert(j.error); } else if(reload){ location.reload(); }
+    return false;
+  }
+</script>
+{% endblock %}

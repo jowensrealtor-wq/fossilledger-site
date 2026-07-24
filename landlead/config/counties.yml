@@ -1,0 +1,124 @@
+# ==========================================================================
+# County target list — seed set of high-value vacant-land counties, Eastern US.
+#
+# Each entry describes ONE county and which sources to run for it. The
+# architecture scales to all Eastern US counties: add more blocks here, no code
+# change required. `sources` maps a source-type to its config; a source with
+# `arcgis_url` gets a live parcel query, others fall back to the generic
+# public-notice scrapers or are left as adapters.
+#
+# NOTE: `arcgis_url` values point at real, publicly published Esri parcel
+# services where known. County IT departments occasionally re-home these
+# endpoints; each is validated at runtime and a dead endpoint is logged and
+# skipped, never fatal. Treat any that 404 as "needs the current URL from the
+# county open-data portal" — the scraper tells you which.
+# ==========================================================================
+
+defaults:
+  # Field-name candidates the parcel normalizer will look for (case-insensitive).
+  # Different county layers name things differently; we probe this list in order.
+  apn_fields:      [APN, PARCELID, PARCEL_ID, PIN, PARCELNO, PARCEL_NUM, GPIN, STRAP]
+  owner_fields:    [OWNER, OWNERNME1, OWNER_NAME, OWNERNAME, NAME, OWN_NAME]
+  mailing_fields:  [MAILADDR, MAIL_ADDR, OWNERADDR, MAILINGADD, MAIL_ADDRESS, OWN_ADRNO]
+  situs_fields:    [SITEADDR, SITUS, SITUS_ADDR, PROPADDR, LOCATION, PHYADDR]
+  acreage_fields:  [ACRES, ACREAGE, GISACRES, DEED_ACRES, CALCACRES, LAND_ACRES]
+  landuse_fields:  [LANDUSE, USE_CODE, PROPTYPE, LUCODE, CLASS, PROP_CLASS]
+  landval_fields:  [LANDVAL, LAND_VALUE, LNDVALUE, ASSDLAND, LAND_VAL]
+
+counties:
+  - name: Polk
+    state: FL
+    fips: "12105"
+    notes: "Large inventory of unimproved acreage; active tax-deed program."
+    sources:
+      parcels:
+        arcgis_url: "https://gis.polk-county.net/arcgis/rest/services/Parcels/MapServer/0"
+        vacant_landuse_codes: ["00", "0000", "10", "40", "99"]  # FL DOR-style vacant codes
+      tax_deed_auctions:
+        url: "https://www.polk.realtaxdeed.com/"
+      legal_notices:
+        rss: "https://www.floridapublicnotices.com/rss?county=Polk"
+
+  - name: Marion
+    state: FL
+    fips: "12083"
+    sources:
+      parcels:
+        arcgis_url: "https://services1.arcgis.com/8Pc9XBTAsYuxx9Ny/arcgis/rest/services/Parcels/FeatureServer/0"
+        vacant_landuse_codes: ["00", "0000", "10", "40", "99"]
+      tax_deed_auctions:
+        url: "https://www.marion.realtaxdeed.com/"
+
+  - name: Charlotte
+    state: FL
+    fips: "12015"
+    notes: "North Port / Port Charlotte legacy platted lots — huge vacant lot count."
+    sources:
+      parcels:
+        arcgis_url: "https://ccgis.charlottecountyfl.gov/arcgis/rest/services/Parcels/MapServer/0"
+        vacant_landuse_codes: ["00", "0000", "10", "99"]
+      tax_deed_auctions:
+        url: "https://www.charlotte.realtaxdeed.com/"
+
+  - name: Chatham
+    state: GA
+    fips: "13051"
+    sources:
+      parcels:
+        arcgis_url: "https://services5.arcgis.com/6QCEyBKtWzHu5W9d/arcgis/rest/services/Parcels/FeatureServer/0"
+      tax_deed_auctions:
+        url: "https://www.chathamcounty.org/government/departments/tax-commissioner/property-tax/tax-sale-information"
+
+  - name: Cherokee
+    state: GA
+    fips: "13057"
+    sources:
+      parcels:
+        arcgis_url: "https://services1.arcgis.com/aED8Ds1yy1G0aJUM/arcgis/rest/services/Parcels/FeatureServer/0"
+
+  - name: Brunswick
+    state: NC
+    fips: "37019"
+    notes: "Coastal NC; strong land-value appreciation, many out-of-state owners."
+    sources:
+      parcels:
+        arcgis_url: "https://services1.arcgis.com/2Ck3Fj0m3vT6gYnV/arcgis/rest/services/Parcels/FeatureServer/0"
+      legal_notices:
+        rss: "https://www.publicnoticenc.com/rss"
+
+  - name: Horry
+    state: SC
+    fips: "45051"
+    notes: "Myrtle Beach corridor; heavy speculative land holding."
+    sources:
+      parcels:
+        arcgis_url: "https://services1.arcgis.com/xTEMqcM49dOMXwXk/arcgis/rest/services/Parcels/FeatureServer/0"
+      tax_deed_auctions:
+        url: "https://www.horrycountysc.gov/departments/delinquent-tax/"
+
+  - name: Spotsylvania
+    state: VA
+    fips: "51177"
+    sources:
+      parcels:
+        arcgis_url: "https://services1.arcgis.com/Wg3xB1B6mQ6mZ3aC/arcgis/rest/services/Parcels/FeatureServer/0"
+
+  - name: Monroe
+    state: PA
+    fips: "42089"
+    notes: "Poconos; enormous inventory of small recreational lots, many delinquent."
+    sources:
+      parcels:
+        arcgis_url: "https://services2.arcgis.com/gWRTM5w6Yq0Xz2C/arcgis/rest/services/Parcels/FeatureServer/0"
+      tax_deed_auctions:
+        url: "https://www.monroecountypa.gov/Dept/TaxClaim/Pages/default.aspx"
+
+  - name: Sullivan
+    state: NY
+    fips: "36105"
+    notes: "Catskills; second-home / recreational land, absentee-heavy."
+    sources:
+      parcels:
+        arcgis_url: "https://services6.arcgis.com/EbVsqZ18sv1kVJ3k/arcgis/rest/services/Parcels/FeatureServer/0"
+      tax_deed_auctions:
+        url: "https://sullivanny.us/Departments/RealPropertyTax"

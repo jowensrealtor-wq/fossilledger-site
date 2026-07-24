@@ -1,0 +1,26 @@
+{{ date }}
+
+{{ owner_name }}
+{{ owner_mailing_address }}
+
+Re: Real property at {{ property_address }} (Parcel {{ apn }})
+
+Dear {{ owner_name_salutation }},
+
+Please accept my condolences if you have recently lost a family member. I understand this may be a difficult time, and I don't wish to intrude.
+
+I work with families in {{ county }} County, {{ state }} who have inherited land they may not want to keep or maintain. If you have come into ownership of the parcel at {{ property_address }} and the responsibility of taxes, upkeep, or a distant property is more than you'd like to take on, I may be able to help by purchasing it directly — as-is, for cash, with no repairs, cleanup, or fees on your end.
+
+There is absolutely no obligation. If you'd simply like to know what the land might be worth, I'm glad to look into it for you at no cost. And if the timing isn't right, I completely understand — please set this aside for whenever it suits you.
+
+You can reach me at {{ agent_phone }} or {{ agent_email }} whenever you're ready.
+
+With sympathy and respect,
+
+{{ agent_name }}
+{{ agent_company }}
+{{ agent_phone }} | {{ agent_email }}
+
+---
+This is a solicitation to purchase real property. If you would prefer not to
+receive further letters, please let me know and I will remove you from my list.

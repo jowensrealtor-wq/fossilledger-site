@@ -1,0 +1,14 @@
+# Local secrets & data
+.env
+*.db
+*.db-wal
+*.db-shm
+data/
+landlead.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/

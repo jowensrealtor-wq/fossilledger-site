@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}LandLead CRM{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a href="/" class="brand">🗺️ LandLead</a>
+    <nav>
+      <a href="/">Dashboard</a>
+      <a href="/?priority=true">High-Priority</a>
+      <a href="/api/export.csv">Export CSV</a>
+    </nav>
+    <form class="runform" method="post" action="/api/pipeline/run" onsubmit="return runPipeline(event)">
+      <button type="submit" class="btn btn-run" title="Scrape → enrich → build follow-ups">▶ Run Pipeline</button>
+    </form>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="foot">
+    Public-records land-lead system · see <code>COMPLIANCE.md</code> before contacting owners.
+  </footer>
+  <script>
+    async function runPipeline(e){
+      e.preventDefault();
+      const btn = e.target.querySelector('button');
+      btn.disabled = true; btn.textContent = '⏳ Running…';
+      try {
+        const r = await fetch('/api/pipeline/run', {method:'POST'});
+        const j = await r.json();
+        alert('Pipeline complete.\n' + JSON.stringify(j.enrichment) + '\nTasks: ' +
+              JSON.stringify(j.tasks && j.tasks.tasks_created) + '\nMail queued: ' +
+              (j.mail && j.mail.queued));
+        location.reload();
+      } catch(err){ alert('Pipeline error: ' + err); }
+      btn.disabled = false; btn.textContent = '▶ Run Pipeline';
+      return false;
+    }
+  </script>
+</body>
+</html>
