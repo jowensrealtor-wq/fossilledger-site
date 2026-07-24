@@ -1,0 +1,19 @@
+services:
+  landlead:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Everything optional; safe defaults bake in. Override here or via .env.
+      SCRAPER_USER_AGENT: "LandLeadBot/1.0 (+mailto:jowensrealtor@gmail.com)"
+      SCRAPER_RATE_LIMIT_SECONDS: "3.0"
+      SCRAPER_RESPECT_ROBOTS: "true"
+      ENABLE_SCHEDULER: "true"
+      DATABASE_URL: "sqlite:///./data/landlead.db"
+    volumes:
+      # Persist the SQLite DB across restarts.
+      - ./data:/app/data
+    restart: unless-stopped
+
+# To use Postgres instead of SQLite, add a `db:` service and point
+# DATABASE_URL at it, then extend db/database.py with a Postgres backend.

@@ -1,0 +1,27 @@
+{{ date }}
+
+{{ owner_name }}
+{{ owner_mailing_address }}
+
+Re: Your property at {{ property_address }} (Parcel {{ apn }})
+
+Dear {{ owner_name_salutation }},
+
+I'm {{ agent_name }}, a local land buyer in {{ county }} County, {{ state }}. Public records suggest the taxes on your parcel at {{ property_address }} may have fallen behind. I'm writing because you have options, and I'd like to help you avoid losing the property at a tax sale if selling is something you'd consider.
+
+If keeping the land no longer makes sense for you, I can purchase it as-is for cash. I can often close quickly and cover the closing costs, which may let you walk away without the burden of the back taxes hanging over you.
+
+This is not a bill, and it is not from the county — it's simply an offer to talk. There's no obligation, and if you've already resolved the taxes, please disregard this note.
+
+You can reach me directly at {{ agent_phone }} or {{ agent_email }}.
+
+Sincerely,
+
+{{ agent_name }}
+{{ agent_company }}
+{{ agent_phone }} | {{ agent_email }}
+
+---
+This is a solicitation to purchase real property. It is not affiliated with any
+government agency. If you would prefer not to receive further letters, please let
+me know and I will remove you from my list.

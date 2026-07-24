@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · LandLead{% endblock %}
+{% block content %}
+
+<section class="stats">
+  <div class="stat"><span class="num">{{ stats.total_leads }}</span><span class="lbl">Total leads</span></div>
+  <div class="stat priority"><span class="num">{{ stats.priority_leads }}</span><span class="lbl">High-priority (≥70)</span></div>
+  <div class="stat"><span class="num">{{ stats.open_tasks }}</span><span class="lbl">Open tasks</span></div>
+  <div class="stat"><span class="num">{{ stats.queued_mail }}</span><span class="lbl">Queued mail</span></div>
+</section>
+
+<section class="pipeline-bar">
+  {% for stage in pipeline %}
+    <a class="stage" href="/?status={{ stage }}">
+      <span class="stage-name">{{ stage }}</span>
+      <span class="stage-count">{{ stats.by_status.get(stage, 0) }}</span>
+    </a>
+  {% endfor %}
+</section>
+
+<form class="filters" method="get" action="/">
+  <input type="text" name="state" placeholder="State (FL, GA…)" value="{{ filters.state or '' }}">
+  <input type="text" name="county" placeholder="County" value="{{ filters.county or '' }}">
+  <input type="number" name="min_score" placeholder="Min score" value="{{ filters.min_score or '' }}">
+  <select name="status">
+    <option value="">Any status</option>
+    {% for stage in pipeline %}
+      <option value="{{ stage }}" {% if filters.status == stage %}selected{% endif %}>{{ stage }}</option>
+    {% endfor %}
+  </select>
+  <label class="chk"><input type="checkbox" name="priority" value="true" {% if filters.priority %}checked{% endif %}> Priority only</label>
+  <button class="btn" type="submit">Filter</button>
+</form>
+
+<table class="leads">
+  <thead>
+    <tr>
+      <th>Score</th><th>APN</th><th>County</th><th>Owner</th>
+      <th>Property</th><th>Acres</th><th>Land $</th><th>Signals</th><th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for lead in leads %}
+    <tr class="{{ 'row-priority' if lead.priority else '' }}" onclick="location.href='/leads/{{ lead.id }}'">
+      <td><span class="score score-{{ (lead.lead_score // 20) }}">{{ lead.lead_score }}</span></td>
+      <td class="mono">{{ lead.apn }}</td>
+      <td>{{ lead.county }}, {{ lead.state }}</td>
+      <td>{{ lead.owner_name or '—' }}</td>
+      <td class="small">{{ lead.property_address or '—' }}</td>
+      <td>{{ '%.2f'|format(lead.acreage) if lead.acreage else '—' }}</td>
+      <td>{{ '${:,.0f}'.format(lead.land_value) if lead.land_value else '—' }}</td>
+      <td class="signals">
+        {% if lead.tax_delinquent %}<span class="tag tax">TAX</span>{% endif %}
+        {% if lead.probate_signal %}<span class="tag prob">PROBATE</span>{% endif %}
+        {% if lead.absentee %}<span class="tag abs">ABSENTEE</span>{% endif %}
+        {% if lead.out_of_state_owner %}<span class="tag oos">OOS</span>{% endif %}
+        {% if lead.code_violation %}<span class="tag code">CODE</span>{% endif %}
+        {% if lead.vacant_confirmed %}<span class="tag vac">VACANT</span>{% endif %}
+      </td>
+      <td><span class="status-pill s-{{ lead.status|replace(' ','-')|lower }}">{{ lead.status }}</span></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="9" class="empty">No leads yet. Click <strong>▶ Run Pipeline</strong> to ingest, or import a CSV via <code>POST /api/import</code>.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}
